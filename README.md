@@ -1,6 +1,7 @@
 # Smart Notes
 
 A modern, AI-powered note-taking web application built with Next.js and Supabase.
+Visit here: https://smart-notes-vercel.vercel.app/
 
 ## Features
 
