@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CreateNoteInput } from '@/types/notes';
+import CategorySelector from './CategorySelector';
 
 interface CreateNoteModalProps {
     isOpen: boolean;
@@ -12,12 +13,14 @@ interface CreateNoteModalProps {
 const CreateNoteModal: React.FC<CreateNoteModalProps> = ({ isOpen, onClose, onSubmit }) => {
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
+    const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onSubmit({ title, content });
+        onSubmit({ title, content, categories: selectedCategories });
         setTitle('');
         setContent('');
+        setSelectedCategories([]);
         onClose();
     };
 
@@ -56,6 +59,15 @@ const CreateNoteModal: React.FC<CreateNoteModalProps> = ({ isOpen, onClose, onSu
                                      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             placeholder="Enter note content"
                             required
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Categories
+                        </label>
+                        <CategorySelector
+                            selectedCategories={selectedCategories}
+                            onChange={setSelectedCategories}
                         />
                     </div>
                     <div className="flex justify-end space-x-3">
