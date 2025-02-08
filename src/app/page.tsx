@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import Layout from '@/components/Layout';
 import CreateNoteModal from '@/components/CreateNoteModal';
 import NoteDetails from '@/components/NoteDetails';
@@ -20,7 +20,8 @@ export default function Home() {
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [selectedColor, setSelectedColor] = useState('#000000');
@@ -30,24 +31,7 @@ export default function Home() {
     '#FFB533', '#FF3333', '#33FF33', '#3333FF', '#FF33B5'
   ];
 
-  useEffect(() => {
-    if (user) {
-      loadNotes();
-      loadCategories();
-      initializeDefaultCategories();
-    }
-  }, [user]);
-
-  const initializeDefaultCategories = async () => {
-    try {
-      await categoriesService.initializeDefaultCategories();
-      await loadCategories();
-    } catch (error) {
-      console.error('Failed to initialize categories:', error);
-    }
-  };
-
-  const loadCategories = async () => {
+  const loadCategories = useCallback(async () => {
     try {
       await categoriesService.cleanupDuplicateCategories();
       const categories = await categoriesService.getAllCategories();
@@ -55,33 +39,59 @@ export default function Home() {
     } catch (error) {
       console.error('Failed to load categories:', error);
     }
-  };
+  }, []);
 
-  const loadNotes = async () => {
+  const loadNotes = useCallback(async () => {
     try {
       const notes = await notesService.getAllNotes();
       setNotes(notes);
     } catch (error) {
       console.error('Failed to load notes:', error);
     }
-  };
+  }, []);
 
-  const handleCreateNote = async (input: { title: string; content: string; categories: string[] }) => {
+  const initializeDefaultCategories = useCallback(async () => {
+    try {
+      await categoriesService.initializeDefaultCategories();
+      await loadCategories();
+    } catch (error) {
+      console.error('Failed to initialize categories:', error);
+    }
+  }, [loadCategories]);
+
+  useEffect(() => {
+    if (user) {
+      const initializeData = async () => {
+        setIsLoading(true);
+        try {
+          await Promise.all([
+            loadNotes(),
+            loadCategories(),
+            initializeDefaultCategories()
+          ]);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      initializeData();
+    }
+  }, [user, loadNotes, loadCategories, initializeDefaultCategories]);
+
+  const handleCreateNote = useCallback(async (input: { title: string; content: string; categories: string[] }) => {
     try {
       await notesService.createNote(input);
       await loadNotes();
     } catch (error) {
       console.error('Failed to create note:', error);
     }
-  };
+  }, [loadNotes]);
 
-  const handleDeleteNote = async (note: Note) => {
+  const handleDeleteNote = useCallback((note: Note) => {
     setNoteToDelete(note);
-  };
+  }, []);
 
-  const confirmDelete = async () => {
+  const confirmDelete = useCallback(async () => {
     if (!noteToDelete) return;
-
     try {
       await notesService.deleteNote(noteToDelete.id);
       await loadNotes();
@@ -89,16 +99,24 @@ export default function Home() {
     } catch (error) {
       console.error('Failed to delete note:', error);
     }
-  };
+  }, [noteToDelete, loadNotes]);
 
-  const handleViewDetails = (note: Note) => {
+  const handleViewDetails = useCallback((note: Note) => {
     setSelectedNote(note);
     setIsDetailsModalOpen(true);
-  };
+  }, []);
 
-  const filteredNotes = selectedCategories.length > 0
-    ? notes.filter(note => note.categories.some(catId => selectedCategories.includes(catId)))
-    : notes;
+  const filteredNotes = useMemo(() =>
+    selectedCategories.length > 0
+      ? notes.filter(note => note.categories.some(catId => selectedCategories.includes(catId)))
+      : notes,
+    [notes, selectedCategories]
+  );
+
+  const getCategoryById = useCallback((id: string) =>
+    categories.find(cat => cat.id === id),
+    [categories]
+  );
 
   const handleCreateCategory = async () => {
     try {
@@ -110,7 +128,7 @@ export default function Home() {
     }
   };
 
-  if (loading) {
+  if (authLoading || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-xl">Loading...</div>
@@ -121,8 +139,6 @@ export default function Home() {
   if (!user) {
     return <Auth />;
   }
-
-  const getCategoryById = (id: string) => categories.find(cat => cat.id === id);
 
   return (
     <Layout>

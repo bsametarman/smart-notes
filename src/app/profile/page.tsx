@@ -10,7 +10,6 @@ export default function Profile() {
     const router = useRouter();
     const { user, loading, signOut } = useAuth();
     const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
@@ -57,7 +56,6 @@ export default function Profile() {
             const { error } = await supabase.auth.updateUser({ password: newPassword });
             if (error) throw error;
             setMessage({ type: 'success', text: 'Password updated successfully. Please sign in with your new password.' });
-            setPassword('');
             setNewPassword('');
             // Sign out after password change
             setTimeout(async () => {
